@@ -291,8 +291,7 @@ def send_quote(message):
     button = types.InlineKeyboardButton("🧘 Задать вопрос", callback_data="start_question")
     markup.add(button)
     
-    follow_up_text = "Хочешь получить ответ на другой вопрос? Нажми кнопку ниже 🌟"
-    bot.send_message(message.chat.id, follow_up_text, reply_markup=markup)
+    bot.send_message(message.chat.id, reply_markup=markup)
 
 def run_bot():
     print("🔄 Бот запускается...")
@@ -303,3 +302,4 @@ def run_bot():
 
 if __name__ == "__main__":
     run_bot()
+
