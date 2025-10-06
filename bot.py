@@ -3,12 +3,18 @@ import random
 import time
 import os
 from telebot import types
+from flask import Flask, request # Импортируем Flask
 
 BOT_TOKEN = os.getenv('BOT_TOKEN')
+WEBHOOK_HOST = os.getenv('WEBHOOK_HOST') # Добавь эту переменную окружения (URL твоего деплоя)
+WEBHOOK_PORT = int(os.getenv('PORT', 5000)) # Порт, который слушает твой веб-сервер
+WEBHOOK_URL_PATH = "/webhook/"
+WEBHOOK_URL = f"https://{WEBHOOK_HOST}{WEBHOOK_URL_PATH}"
 
 bot = telebot.TeleBot(BOT_TOKEN)
+app = Flask(__name__) # Инициализируем Flask приложение
 
-# === ВСТАВЬТЕ СЮДА ВАШ МАССИВ ЦИТАТ ===
+# ... (твои quotes остаются без изменений) ...
 quotes = [
     "Облакам не страшно упасть в море, ведь они (а) не могут упасть и (б) не могут утонуть. Впрочем, никто не мешает им верить, что с ними такое может случиться. И они могут бояться сколько угодно, если захотят.",
     "Самые счастливые, самые удачливые люди однажды задумывались о самоубийстве. И отвергли его.",
@@ -215,6 +221,18 @@ quotes = [
     "В этой книге все может оказаться ошибкой."
 ]
 
+# Обработчик вебхуков Flask
+@app.route(WEBHOOK_URL_PATH, methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return '', 200
+    else:
+        return 'Bad Request', 403
+
+# ... (твои существующие функции send_welcome, handle_start_question и т.д. остаются без изменений) ...
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     welcome_text = """
@@ -289,29 +307,16 @@ def send_quote(message):
     time.sleep(2)
     
     markup = types.InlineKeyboardMarkup()
-    button = types.InlineKeyboardButton("🧘 Новый вопрос", callback_data="start_question")
+    button = types.InlineKeyboardButton("🧘 Задать вопрос", callback_data="start_question")
     markup.add(button)
     
-    bot.send_message(message.chat.id, "🌟", reply_markup=markup)
-
-def clear_webhook():
-    try:
-        bot.remove_webhook()
-        print("✅ Webhook сброшен")
-    except:
-        print("ℹ️ Webhook не был установлен")
-
-def run_bot():
-    print("🔄 Бот запускается...")
-    clear_webhook()
-    while True:
-        try:
-            print("🔗 Подключаемся к Telegram...")
-            bot.infinity_polling(timeout=60, long_polling_timeout=60, restart_on_change=True)
-        except Exception as e:
-            print(f"❌ Ошибка: {e}")
-            print("🔄 Перезапуск через 10 секунд...")
-            time.sleep(10)
+    bot.send_message(message.chat.id, "Нажми '🧘 Задать вопрос', чтобы получить мудрый ответ!", reply_markup=markup)
 
 if __name__ == "__main__":
-    run_bot()
+    # Устанавливаем вебхук при запуске
+    bot.remove_webhook()
+    time.sleep(0.1)
+    bot.set_webhook(url=WEBHOOK_URL)
+    print(f"Webhook установлен: {WEBHOOK_URL}")
+    # Запускаем Flask приложение
+    app.run(host='0.0.0.0', port=WEBHOOK_PORT)
