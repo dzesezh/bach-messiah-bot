@@ -3,15 +3,8 @@ import random
 import time
 import os
 from telebot import types
-from flask import Flask
 
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "🧘 Бот 'Карманный справочник Мессии' работает! ✅"
-
-BOT_TOKEN = os.getenv('BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE')
+BOT_TOKEN = os.getenv('BOT_TOKEN')
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -309,8 +302,4 @@ def run_bot():
         print(f"❌ Ошибка: {e}")
 
 if __name__ == "__main__":
-    import threading
-    
-    threading.Thread(target=lambda: app.run(host='0.0.0.0', port=5000), daemon=True).start()
-    
     run_bot()
