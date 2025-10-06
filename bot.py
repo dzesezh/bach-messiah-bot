@@ -8,6 +8,7 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
+# === ВСТАВЬТЕ СЮДА ВАШ МАССИВ ЦИТАТ ===
 quotes = [
     "Облакам не страшно упасть в море, ведь они (а) не могут упасть и (б) не могут утонуть. Впрочем, никто не мешает им верить, что с ними такое может случиться. И они могут бояться сколько угодно, если захотят.",
     "Самые счастливые, самые удачливые люди однажды задумывались о самоубийстве. И отвергли его.",
@@ -288,18 +289,29 @@ def send_quote(message):
     time.sleep(2)
     
     markup = types.InlineKeyboardMarkup()
-    button = types.InlineKeyboardButton("🧘 Задать вопрос", callback_data="start_question")
+    button = types.InlineKeyboardButton("🧘 Новый вопрос", callback_data="start_question")
     markup.add(button)
     
-    bot.send_message(message.chat.id, reply_markup=markup)
+    bot.send_message(message.chat.id, "🌟", reply_markup=markup)
+
+def clear_webhook():
+    try:
+        bot.remove_webhook()
+        print("✅ Webhook сброшен")
+    except:
+        print("ℹ️ Webhook не был установлен")
 
 def run_bot():
     print("🔄 Бот запускается...")
-    try:
-        bot.infinity_polling()
-    except Exception as e:
-        print(f"❌ Ошибка: {e}")
+    clear_webhook()
+    while True:
+        try:
+            print("🔗 Подключаемся к Telegram...")
+            bot.infinity_polling(timeout=60, long_polling_timeout=60, restart_on_change=True)
+        except Exception as e:
+            print(f"❌ Ошибка: {e}")
+            print("🔄 Перезапуск через 10 секунд...")
+            time.sleep(10)
 
 if __name__ == "__main__":
     run_bot()
-
