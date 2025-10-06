@@ -311,12 +311,3 @@ def send_quote(message):
     markup.add(button)
     
     bot.send_message(message.chat.id, "Нажми '🧘 Задать вопрос', чтобы получить мудрый ответ!", reply_markup=markup)
-
-if __name__ == "__main__":
-    # Устанавливаем вебхук при запуске
-    bot.remove_webhook()
-    time.sleep(0.1)
-    bot.set_webhook(url=WEBHOOK_URL)
-    print(f"Webhook установлен: {WEBHOOK_URL}")
-    # Запускаем Flask приложение
-    app.run(host='0.0.0.0', port=WEBHOOK_PORT)
