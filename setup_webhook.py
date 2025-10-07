@@ -1,55 +1,40 @@
 import telebot
 import os
-import time
 
-# Получаем токен бота из переменных окружения
+# Убедись, что переменные окружения BOT_TOKEN и WEBHOOK_HOST установлены на Render.com
+# BOT_TOKEN - токен твоего бота от BotFather
+# WEBHOOK_HOST - домен твоего сервиса на Render.com (например, bach-messiah-bot.onrender.com)
+
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-
-# Получаем хост (URL) нашего приложения на Render.com
-# Убедись, что переменная WEBHOOK_HOST установлена на render.com
 WEBHOOK_HOST = os.getenv('WEBHOOK_HOST')
-
-# Путь для вебхука внутри нашего Flask-приложения
 WEBHOOK_URL_PATH = "/webhook/"
-
-# Формируем полный URL вебхука
 WEBHOOK_URL = f"https://{WEBHOOK_HOST}{WEBHOOK_URL_PATH}"
 
-# Инициализируем бота
+# Проверка на наличие переменных окружения
+if not BOT_TOKEN:
+    print("Ошибка: Переменная окружения 'BOT_TOKEN' не установлена. Webhook не может быть установлен.")
+    exit(1) # Выходим с ошибкой
+if not WEBHOOK_HOST:
+    print("Ошибка: Переменная окружения 'WEBHOOK_HOST' не установлена. Webhook не может быть установлен.")
+    print(f"Пример: WEBHOOK_HOST должен быть URL твоего сервиса на Render, например, my-bot.onrender.com")
+    exit(1) # Выходим с ошибкой
+
 bot = telebot.TeleBot(BOT_TOKEN)
 
-def set_webhook_once():
-    """
-    Устанавливает или обновляет вебхук для бота, если он еще не установлен
-    или если URL изменился.
-    """
-    if not BOT_TOKEN or not WEBHOOK_HOST:
-        print("Ошибка: BOT_TOKEN или WEBHOOK_HOST не установлены в переменных окружения.")
-        print("Убедитесь, что они заданы перед запуском скрипта.")
-        return
-
-    print("Проверяем текущую информацию о вебхуке...")
-    try:
-        webhook_info = bot.get_webhook_info()
-        print(f"Текущий URL вебхука: {webhook_info.url}")
-        print(f"Ожидаемый URL вебхука: {WEBHOOK_URL}")
-
-        if webhook_info.url != WEBHOOK_URL:
-            print(f"URL вебхука устарел или неверен. Удаляем старый вебхук...")
-            bot.remove_webhook()
-            time.sleep(1) # Даем Telegram API время на обработку запроса
-
-            print(f"Устанавливаем новый вебхук на: {WEBHOOK_URL}")
-            bot.set_webhook(url=WEBHOOK_URL)
-            print("Вебхук успешно установлен.")
-        else:
-            print(f"Вебхук уже корректно установлен на: {WEBHOOK_URL}")
-    except telebot.apihelper.ApiTelegramException as e:
-        print(f"Ошибка при работе с Telegram API: {e}")
-        print("Возможно, BOT_TOKEN неверен или возникли проблемы с сетью.")
-    except Exception as e:
-        print(f"Произошла непредвиденная ошибка: {e}")
-
-
-if __name__ == '__main__':
-    set_webhook_once()
+try:
+    # Сначала удаляем все старые вебхуки, чтобы избежать конфликтов
+    bot.remove_webhook()
+    # Затем устанавливаем новый вебхук
+    bot.set_webhook(url=WEBHOOK_URL)
+    print(f"Webhook успешно установлен на: {WEBHOOK_URL}")
+    print("Теперь ваш бот должен быть готов принимать обновления от Telegram.")
+except telebot.apihelper.ApiException as e:
+    print(f"Ошибка при установке вебхука: {e}")
+    print("Пожалуйста, убедитесь, что:")
+    print("1. BOT_TOKEN в переменных окружения Render корректен.")
+    print("2. WEBHOOK_HOST в переменных окружения Render является правильным URL вашего сервиса Render.")
+    print("3. Ваш сервис на Render запущен и доступен по указанному WEBHOOK_HOST.")
+    exit(1) # Выходим с ошибкой
+except Exception as e:
+    print(f"Неизвестная ошибка: {e}")
+    exit(1) # Выходим с ошибкой
