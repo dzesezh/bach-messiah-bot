@@ -1,24 +1,21 @@
 import telebot
 import random
-import time
 import os
 from telebot import types
-from flask import Flask, request # Импортируем Flask
+from flask import Flask, request
 
+# --- Переменные окружения ---
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-WEBHOOK_HOST = os.getenv('WEBHOOK_HOST') # Добавь эту переменную окружения (URL твоего деплоя)
-WEBHOOK_PORT = int(os.getenv('PORT', 5000)) # Порт, который слушает твой веб-сервер
-# Эти переменные нам не понадобятся напрямую в bot.py, так как gunicorn
-# будет запускать Flask, а вебхук мы установим отдельно.
-# Но для читаемости можно оставить WEBHOOK_URL_PATH для route декоратора.
+WEBHOOK_HOST = os.getenv('WEBHOOK_HOST') # URL твоего деплоя на Render.com (например, my-bot.onrender.com)
 WEBHOOK_URL_PATH = "/webhook/"
-# WEBHOOK_URL_HOST будет использоваться только для ручной установки вебхука
-# поэтому его можно удалить из bot.py, если он тут не нужен для других целей.
+WEBHOOK_URL = f"https://{WEBHOOK_HOST}{WEBHOOK_URL_PATH}"
 
+# Инициализация бота и Flask приложения
 bot = telebot.TeleBot(BOT_TOKEN)
-app = Flask(__name__) # Инициализируем Flask приложение
+app = Flask(__name__)
 
-# ... (твои quotes остаются без изменений) ...
+# --- Список цитат ---
+# Вставьте сюда ваш полный список цитат
 quotes = [
     "Облакам не страшно упасть в море, ведь они (а) не могут упасть и (б) не могут утонуть. Впрочем, никто не мешает им верить, что с ними такое может случиться. И они могут бояться сколько угодно, если захотят.",
     "Самые счастливые, самые удачливые люди однажды задумывались о самоубийстве. И отвергли его.",
@@ -225,7 +222,8 @@ quotes = [
     "В этой книге все может оказаться ошибкой."
 ]
 
-# Обработчик вебхуков Flask
+
+# --- Обработчик вебхуков Flask ---
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':
@@ -236,7 +234,7 @@ def webhook():
     else:
         return 'Bad Request', 403
 
-# ... (твои существующие функции send_welcome, handle_start_question и т.д. остаются без изменений) ...
+# --- Обработчик команды /start ---
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     welcome_text = """
@@ -253,11 +251,7 @@ def send_welcome(message):
     
     bot.send_message(message.chat.id, welcome_text, reply_markup=markup, parse_mode='Markdown')
 
-@bot.callback_query_handler(func=lambda call: call.data == "start_question")
-def handle_start_question(call):
-    bot.answer_callback_query(call.id)
-    start_meditation(call.message)
-
+# --- Обработчик текстовых сообщений (если не /start) ---
 @bot.message_handler(content_types=['text'])
 def handle_messages(message):
     markup = types.InlineKeyboardMarkup()
@@ -265,53 +259,67 @@ def handle_messages(message):
     markup.add(button)
     bot.send_message(message.chat.id, "Нажми '🧘 Задать вопрос', чтобы получить мудрый ответ!", reply_markup=markup)
 
-def start_meditation(message):
+# --- Обработчик коллбэка "start_question" (начало медитации) ---
+@bot.callback_query_handler(func=lambda call: call.data == "start_question")
+def handle_start_question_callback(call):
+    bot.answer_callback_query(call.id) # Отвечаем на коллбэк, чтобы кнопка не висела
+    
     meditation_text = """🧘 *Сосредоточьтесь, закройте глаза, сформулируйте и произнесите про себя вопрос.
-Затем откройте глаза.*"""
-    
-    sent_message = bot.send_message(message.chat.id, meditation_text, parse_mode='Markdown')
-    
-    time.sleep(5)
-    
+Затем откройте глаза.*
+
+_Когда будете готовы, нажмите "Отправить вопрос"._""" # Добавлена инструкция
+
     markup = types.InlineKeyboardMarkup()
     button = types.InlineKeyboardButton("Отправить вопрос", callback_data="send_question")
     markup.add(button)
     
-    bot.edit_message_reply_markup(chat_id=message.chat.id, message_id=sent_message.message_id, reply_markup=markup)
+    # Отправляем сообщение с инструкцией и кнопкой "Отправить вопрос"
+    bot.send_message(call.message.chat.id, meditation_text, parse_mode='Markdown', reply_markup=markup)
 
+# --- Обработчик коллбэка "send_question" (вопрос отправлен) ---
 @bot.callback_query_handler(func=lambda call: call.data == "send_question")
-def handle_send_question(call):
-    bot.answer_callback_query(call.id)
+def handle_send_question_callback(call):
+    bot.answer_callback_query(call.id) # Отвечаем на коллбэк
     
-    time.sleep(3)
+    # Сообщение о том, что Вселенная слушает
     bot.send_message(call.message.chat.id, "💭 *Вселенная слушает...*", parse_mode='Markdown')
     
-    time.sleep(5)
-    
+    # Сразу же отправляем следующее сообщение с кнопкой "Получить ответ", без задержки
     markup = types.InlineKeyboardMarkup()
     button = types.InlineKeyboardButton("🔮 Получить ответ", callback_data="get_answer")
     markup.add(button)
     
     ready_text = "✨ *Готово!*"
-    
     bot.send_message(call.message.chat.id, ready_text, parse_mode='Markdown', reply_markup=markup)
 
+# --- Обработчик коллбэка "get_answer" (получить ответ) ---
 @bot.callback_query_handler(func=lambda call: call.data == "get_answer")
-def handle_get_answer(call):
-    bot.answer_callback_query(call.id)
-    send_quote(call.message)
+def handle_get_answer_callback(call):
+    bot.answer_callback_query(call.id) # Отвечаем на коллбэк
+    send_quote(call.message) # Вызываем функцию отправки цитаты
 
+# --- Функция отправки случайной цитаты ---
 def send_quote(message):
     random_quote = random.choice(quotes)
-    
     answer_text = f"_{random_quote}_"
     
     bot.send_message(message.chat.id, answer_text, parse_mode='Markdown')
     
-    time.sleep(2)
-    
+    # Сразу же после цитаты предлагаем новую кнопку для повторного вопроса
     markup = types.InlineKeyboardMarkup()
     button = types.InlineKeyboardButton("🧘 Задать вопрос", callback_data="start_question")
     markup.add(button)
     
     bot.send_message(message.chat.id, "Нажми '🧘 Задать вопрос', чтобы получить мудрый ответ!", reply_markup=markup)
+
+# --- Если это основной модуль (для локального тестирования или для Render) ---
+if __name__ == '__main__':
+    # Если ты запускаешь это локально и хочешь использовать long polling,
+    # закомментируй следующие строки и используй bot.polling()
+    # bot.polling(none_stop=True) 
+    
+    # Для работы с вебхуками на Render:
+    # Flask-приложение запускается Gunicorn (смотри Start Command)
+    # Здесь нет bot.polling(), т.к. Flask принимает обновления
+    print("Бот настроен для работы с вебхуками через Flask.")
+    print("Убедитесь, что вебхук установлен с помощью set_webhook.py")
